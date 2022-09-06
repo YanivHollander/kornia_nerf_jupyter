@@ -1,0 +1,3 @@
+[submodule "extrinsic2pyramid"]
+	path = extrinsic2pyramid
+	url = git@github.com:demul/extrinsic2pyramid.git
