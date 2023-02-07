@@ -15,14 +15,18 @@ from kornia.nerf.rays import analyze_points_3d
 
 @click.command('cli', context_settings={'show_default': True})
 @click.option('--device', default='cpu', help='Device to run on (cpu/gpu)')
-@click.option('--params', default='None', help='Path to .json file with NeRF params for training')
 @click.option('--scene_dir', default='./', help='Scene directory with images and camera models')
+@click.option('--params', default='None', 
+              help='Path to .json file with NeRF parameters for training (relative to scene_dir')
 @click.option('--image_dir', default='images', help='Image directory (relative to scene_dir)')
 @click.option('--colmap_cameras', default='cameras.txt', help='Colmap camera model filename (relative to scene_dir)')
 @click.option('--colmap_images', default='images.txt', help='Colmap image-camera relation filename (relative to '
                                                             'scene_dir)')
-@click.option('--colmap_points3d', default='points3D.txt', help='Colmap 3d point cloud filename (relative to scene_dir)')
-def cli(device, params, scene_dir, image_dir, colmap_cameras, colmap_images, colmap_points3d):
+@click.option('--colmap_points3d', default='points3D.txt', 
+              help='Colmap 3d point cloud filename (relative to scene_dir)')
+def cli(device, scene_dir, params, image_dir, colmap_cameras, colmap_images, colmap_points3d):
+    if params is not None:
+        params = os.path.join(scene_dir, params)
     image_dir = os.path.join(scene_dir, image_dir)
     colmap_cameras = os.path.join(scene_dir, colmap_cameras)
     colmap_images = os.path.join(scene_dir, colmap_images)
@@ -31,6 +35,8 @@ def cli(device, params, scene_dir, image_dir, colmap_cameras, colmap_images, col
     print('NeRF training')
     print('=============')
     print(f'Scene directory: {os.path.abspath(scene_dir)}')
+    if params is not None:
+        print(f'Parameter path: {os.path.abspath(params)}')
     print(f'Image directory: {os.path.abspath(image_dir)}')
     print(f'Colmap camera file path: {os.path.abspath(colmap_cameras)}')
     print(f'Colmap image-camera relation file path: {os.path.abspath(colmap_images)}')
@@ -73,7 +79,6 @@ def cli(device, params, scene_dir, image_dir, colmap_cameras, colmap_images, col
     nerf_obj.set_cameras_and_images_for_training(cameras, imgs)
     nerf_obj.run(num_iters=10000)
     
-
 
 if __name__ == '__main__':
     cli()
