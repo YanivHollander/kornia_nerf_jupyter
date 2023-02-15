@@ -4,6 +4,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.expanduser('~'), 'Documents/Git/kornia/'))
 
 import click
+import json
 import torch
 from torchvision.io import read_image
 from typing import List
@@ -28,8 +29,9 @@ from kornia.nerf.rays import analyze_points_3d
               help='Directory to save model checkpoints (relative to scene_dir)')
 @click.option('--checkpoint_load_path', default=None, 
               help='Path to model checkpoint file to load (relative to scene_dir)')
+@click.option('--num_iters', default=10000, help='Number of training iterations')
 def cli(device, scene_dir, json_params, image_dir, colmap_cameras, colmap_images, colmap_points3d, checkpoint_save_dir, 
-        checkpoint_load_path):
+        checkpoint_load_path, num_iters):
 
     if json_params is not None:
         json_params = os.path.join(scene_dir, json_params)
@@ -68,8 +70,8 @@ def cli(device, scene_dir, json_params, image_dir, colmap_cameras, colmap_images
             sort_by_image_names=True)
     print(f'Number of scene cameras: {cameras.batch_size}')
     print('Image files associated with scene cameras: ')
-    for img_name in img_names:
-        print(img_name)
+    for i, img_name in enumerate(img_names):
+        print(f'Image name: {img_name}, shape: {cameras.width[i].item(), cameras.height[i].item()}')
 
     print('Pahse 2: parse and analyze Colmap 3D point cloud')
     if colmap_points3d is not None:
@@ -101,23 +103,35 @@ def cli(device, scene_dir, json_params, image_dir, colmap_cameras, colmap_images
             json_nerf_params = f.read()
             print(f'Use the following non-default training parameters read from Json: {json_nerf_params}')
             nerf_params = NerfParams.from_json(json_nerf_params)
+        read_params = json.loads(json_nerf_params)
     else:
         print('Json parameter file was not supplied. Using default parameters')
     if colmap_points3d is not None:
-        print('Min/max depth values will be replaced by the 3d point cloud analysis values')
-        nerf_params._min_depth = min_depth_cameras
-        nerf_params._max_depth = max_depth_cameras
+        print('Min/max depth values will be taken from point cloud analysis, or, if supplied directly, from the Json '
+             'param file')
+        if json_params is not None and '_min_depth' in read_params:
+            print('Overwriting min depth value from point cloud analysis by its value from Json param file')
+            nerf_params._min_depth = read_params['_min_depth']
+        else:
+            print('Taking min depth value from point cloud analysis')
+            nerf_params._min_depth = min_depth_cameras
+        if json_params is not None and '_max_depth' in read_params:
+            print('Overwriting max depth value from point cloud analysis by its value from Json param file')
+            nerf_params._max_depth = read_params['_max_depth']
+        else:
+            print('Taking max depth value from point cloud analysis')
+            nerf_params._max_depth = max_depth_cameras
     print(f'NeRF parameters: {nerf_params.__str__(indent=True)}')
     
     print('Phase 5: run NeRF training on scene images')
     nerf_obj = NerfSolver(device=device, dtype=torch.float32, params=nerf_params, 
-                          checkpoint_save_dir=checkpoint_save_dir)
+                          checkpoint_save_dir=checkpoint_save_dir, checkpoint_save_niter=1000)
     if checkpoint_load_path is not None:
         print('Loading model checkpoint file')
         nerf_obj.load_checkpoint(checkpoint_load_path)
         print(f'Training will continue from iteration {nerf_obj.iter}')
     nerf_obj.set_cameras_and_images_for_training(cameras, imgs)
-    nerf_obj.run(num_iters=10000)
+    nerf_obj.run(num_iters=num_iters)
     
 
 if __name__ == '__main__':
