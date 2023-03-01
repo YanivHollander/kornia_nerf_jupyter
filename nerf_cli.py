@@ -57,7 +57,7 @@ def cli(device, scene_dir, json_params, image_dir, colmap_cameras, colmap_images
         checkpoint_load_path = os.path.join(scene_dir, checkpoint_load_path)
 
     # Define logger
-    fh = logging.FileHandler(logger_path)
+    fh = logging.FileHandler(logger_path, mode='w')
     fh.setLevel(logging.INFO)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     fh.setFormatter(formatter)
